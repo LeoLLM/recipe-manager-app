@@ -1,0 +1,48 @@
+name: Issue Labeler
+
+on:
+  issues:
+    types: [opened, edited]
+
+jobs:
+  label-issues:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Label issues
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const issue = context.payload.issue;
+            const body = issue.body || '';
+            const title = issue.title || '';
+            const fullText = title + ' ' + body;
+            
+            // Define labeling rules
+            const labelRules = [
+              { pattern: /error/i, label: 'bug' },
+              { pattern: /bug/i, label: 'bug' },
+              // Add more rules as needed
+            ];
+            
+            // Check which labels should be applied
+            const labelsToAdd = [];
+            for (const rule of labelRules) {
+              if (rule.pattern.test(fullText)) {
+                labelsToAdd.push(rule.label);
+              }
+            }
+            
+            // Add unique labels
+            const uniqueLabels = [...new Set(labelsToAdd)];
+            if (uniqueLabels.length > 0) {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                labels: uniqueLabels
+              });
+              console.log(`Added labels: ${uniqueLabels.join(', ')} to issue #${issue.number}`);
+            }
